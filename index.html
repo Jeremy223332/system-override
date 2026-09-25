@@ -55,6 +55,26 @@
       pointer-events: none;
     }
 
+    /* Red Flashing Overlay during shutdown */
+    #red-flash-overlay {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background-color: rgba(255, 0, 0, 0.35);
+      z-index: 20;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 1s ease-in-out;
+    }
+
+    .flashing {
+      animation: pulseRed 1s infinite alternate;
+    }
+
+    @keyframes pulseRed {
+      0% { opacity: 0.1; }
+      100% { opacity: 0.6; }
+    }
+
     header {
       border-bottom: 2px solid var(--dim-green);
       padding-bottom: 10px;
@@ -139,9 +159,11 @@
 </head>
 <body>
 
+  <div id="red-flash-overlay"></div>
+
   <header>
     <div>SYS_NODE // 0x99_OVERRIDE</div>
-    <div class="status-alert">[!] SECURITY BREACH DETECTED</div>
+    <div class="status-alert" id="status-hdr">[!] SECURITY BREACH DETECTED</div>
   </header>
 
   <div id="terminal-container">
@@ -162,9 +184,23 @@
   <script>
     const input = document.getElementById('cmd-input');
     const container = document.getElementById('terminal-container');
+    const overlay = document.getElementById('red-flash-overlay');
+    let isTermLocked = false;
 
-    // Keep focus on input automatically
-    document.addEventListener('click', () => input.focus());
+    // Check on page load if user was already locked out from staying on screen
+    window.addEventListener('DOMContentLoaded', () => {
+      if (localStorage.getItem('void_terminal_lockout') === 'true') {
+        lockoutPermanent();
+      } else {
+        // Start 30-second countdown timer for auto-shutdown
+        setTimeout(triggerShutdownSequence, 30000);
+      }
+    });
+
+    // Keep focus on input automatically unless locked
+    document.addEventListener('click', () => {
+      if (!isTermLocked) input.focus();
+    });
 
     function appendLine(text, className = '') {
       const line = document.createElement('div');
@@ -175,9 +211,11 @@
     }
 
     input.addEventListener('keydown', function (e) {
+      if (isTermLocked) return;
+
       if (e.key === 'Enter') {
-        const cmd = input.value.trim();
-        if (cmd === '') return;
+        const cmd = input.value;
+        if (cmd.trim() === '') return;
 
         // Echo command
         appendLine(`<span class="prompt">GUEST@VOID-NODE:~$</span> ${escapeHTML(cmd)}`);
@@ -192,185 +230,44 @@
         tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
     }
 
+    // Triggered after staying on page for 30 seconds
+    function triggerShutdownSequence() {
+      if (localStorage.getItem('void_terminal_lockout') === 'true') return;
+
+      // Lock input and save lock flag to localStorage
+      isTermLocked = true;
+      localStorage.setItem('void_terminal_lockout', 'true');
+      input.disabled = true;
+
+      // Start flashing red overlay
+      overlay.classList.add('flashing');
+
+      appendLine('', '');
+      appendLine('SYSTEM OVERRIDE SHUTTING DOWN...', 'error-msg');
+      appendLine('[!] CRITICAL SECURITY PURGE INITIATED...', 'error-msg');
+
+      // Freeze terminal completely after short delay
+      setTimeout(() => {
+        overlay.style.opacity = '0.8';
+        appendLine('[!] SYSTEM TERMINATED. CONNECTION FROZEN.', 'error-msg');
+      }, 3000);
+    }
+
+    // Runs if refreshed after lockout
+    function lockoutPermanent() {
+      isTermLocked = true;
+      input.disabled = true;
+      container.innerHTML = '';
+      appendLine('command not found... stay away', 'error-msg');
+    }
+
     function processCommand(rawCmd) {
+      if (isTermLocked) return;
+
       const cmd = rawCmd.trim();
       const lowerCmd = cmd.toLowerCase();
 
       // Secret Level 5 Admin Override Code
-      if (cmd === 'give_user+level=5/allow-accept-=42552156') {
-        appendLine('[*] VALIDATING EXECUTIVE OVERRIDE HASH...', 'system-msg');
-        setTimeout(() => {
-          appendLine('[+] SECURITY KEY RECOGNIZED: LEVEL 5 CLEARANCE GRANTED.', 'system-msg');
-          appendLine('[+] ALL RESTRICTED NODES AND DOSSIERS UNLOCKED.');
-          appendLine(' -> <span style="color:#fff;">PROJECT_VOID_99 AUTHORIZED</span>');
-          appendLine(' -> <span style="color:#fff;">FM BROADCAST SIGNAL: 104.5 MHz OVERRIDDEN</span>');
-          appendLine(' -> <span style="color:#fff;">VRC_HLS_STREAM PIPELINE: UNRESTRICTED ACCESS</span>');
-        }, 800);
-        return;
-      }
-
-      // Handle @tech= trigger
-      if (lowerCmd.startsWith('@tech=')) {
-        const query = cmd.substring(6).trim();
-        
-        if (!query) {
-          appendLine('[!] ERROR: NO SEARCH QUERY SPECIFIED.', 'error-msg');
-          appendLine('USAGE: <span style="color:#fff;">@tech=&lt;query&gt;</span> (e.g., @tech=youtube or @tech=status)', 'system-msg');
-          return;
-        }
-
-        appendLine(`[*] INITIATING @TECH QUERY ENGINE...`, 'system-msg');
-        appendLine(`[*] TARGET: "${escapeHTML(query)}"`, 'system-msg');
-
-        setTimeout(() => {
-          const lowerQuery = query.toLowerCase();
-
-          // Custom query cases
-          if (lowerQuery.includes('youtube') || lowerQuery.includes('playlist')) {
-            appendLine('[+] MATCH FOUND: MEDIA CONTROLLER ACTIVE', 'system-msg');
-            appendLine(' -> Stream Node: vrchat-search.onrender.com');
-            appendLine(' -> Payload Status: 30 Tracks Loaded [Pop/Rock/Country]');
-          } 
-          else if (lowerQuery.includes('vrc') || lowerQuery.includes('vrchat')) {
-            appendLine('[+] MATCH FOUND: VRChat HLS STREAM PIPELINE', 'system-msg');
-            appendLine(' -> Caster URL: vrchat-hls-stream.onrender.com');
-            appendLine(' -> Protocol: HLS Live Broadcast');
-          } 
-          else if (lowerQuery.includes('secret') || lowerQuery.includes('void')) {
-            appendLine('[+] CLASSIFIED TARGET LOCATED', 'error-msg');
-            appendLine(' -> Clearance level verified.');
-            appendLine(' -> Access Key: <span class="redacted">PROJECT_VOID_99</span>');
-          } 
-          else {
-            // Web / Node Search fallback
-            appendLine('[*] QUERYING EXTERNAL WEB ARCHIVES...', 'system-msg');
-            appendLine(`[+] RESULTS RETURNED FOR "${escapeHTML(query)}":`);
-            appendLine(` -> [01] External Index: <a href="https://www.google.com/search?q=${encodeURIComponent(query)}" target="_blank" style="color:var(--term-green);">https://www.google.com/search?q=${encodeURIComponent(query)}</a>`);
-            appendLine(` -> [02] Internal Node Log: Matches found in sector 0x99`);
-          }
-        }, 600);
-
-        return;
-      }
-
-      // Standard command handler
-      switch (lowerCmd) {
-        case 'help':
-          appendLine('AVAILABLE COMMANDS:');
-          appendLine('  <span style="color:#fff;">@tech=&lt;query&gt;</span> - Search internal nodes or web archives');
-          appendLine('  <span style="color:#fff;">status</span>       - Check current system node health');
-          appendLine('  <span style="color:#fff;">logs</span>         - Read recent classified transmission logs');
-          appendLine('  <span style="color:#fff;">scan</span>         - Scan network for connected nodes');
-          appendLine('  <span style="color:#fff;">decrypt</span>      - Run auto-decryption sequence');
-          appendLine('  <span style="color:#fff;">matrix</span>       - Initiate rain data stream sequence');
-          appendLine('  <span style="color:#fff;">audio</span>        - Connect to audio frequency feed');
-          appendLine('  <span style="color:#fff;">clear</span>        - Clear terminal output');
-          appendLine('  <span style="color:#fff;">override</span>     - Attempt system override credentials');
-          break;
-
-        case 'status':
-          appendLine('[+] NODE 99 STATE: CORRUPTED', 'error-msg');
-          appendLine('[+] FIREWALL STATUS: BYPASSED', 'system-msg');
-          appendLine('[+] MEMORY CORRUPTION: 43.8%');
-          break;
-
-        case 'logs':
-          appendLine('[LOG 01]: Transmission received from UNKNOWN SENDER.');
-          appendLine('[LOG 02]: <span class="redacted">LOCATION CORRUPTED</span>');
-          appendLine('[LOG 03]: "The signal was never meant to be decoded..."');
-          appendLine('[LOG 04]: Broadcast sync complete across all local audio nodes.');
-          break;
-
-        case 'scan':
-          appendLine('[*] SCANNING SUBNET 192.168.0.0/24...', 'system-msg');
-          setTimeout(() => appendLine(' -> NODE 01 [192.168.0.12] - ACTIVE (VRC_STREAM_HOST)'), 400);
-          setTimeout(() => appendLine(' -> NODE 02 [192.168.0.44] - <span class="error-msg">CORRUPTED</span>'), 800);
-          setTimeout(() => appendLine(' -> NODE 03 [192.168.0.99] - <span class="system-msg">ENCRYPTED</span>'), 1200);
-          break;
-
-        case 'decrypt':
-          appendLine('[*] INITIALIZING BRUTE-FORCE DECRYPTION KEY...', 'system-msg');
-          let progress = 0;
-          const interval = setInterval(() => {
-            progress += 25;
-            appendLine(`[>>] DECRYPTING BLOCK... ${progress}%`);
-            if (progress >= 100) {
-              clearInterval(interval);
-              appendLine('[+] DECRYPTION COMPLETE: Payload key recovered.', 'system-msg');
-              appendLine('KEY VALUE: <span class="redacted">VOID_OVERRIDE_KEY_99</span>');
-            }
-          }, 300);
-          break;
-
-        case 'matrix':
-          appendLine('[*] INITIATING MATRIX STREAM...', 'system-msg');
-          for (let i = 0; i < 5; i++) {
-            setTimeout(() => {
-              const randChars = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-              appendLine(`<span class="system-msg">${randChars}</span>`);
-            }, i * 200);
-          }
-          break;
-
-        case 'audio':
-          appendLine('[*] TUNING FREQUENCY FEED...', 'system-msg');
-          setTimeout(() => appendLine('[+] CARRIER SIGNAL DETECTED: 104.5 MHz FM Broadcast'), 500);
-          setTimeout(() => appendLine('[+] FEED STATUS: ACTIVE LIVE STREAMING'), 900);
-          break;
-
-        case 'clear':
-          container.innerHTML = '';
-          break;
-
-        case 'override':
-          appendLine('ATTEMPTING SYSTEM OVERRIDE...', 'system-msg');
-          setTimeout(() => {
-            appendLine('ACCESS DENIED: LEVEL 5 CLEARANCE REQUIRED.', 'error-msg');
-          }, 600);
-          break;
-
-        default:
-          appendLine(`Command not recognized: '${escapeHTML(cmd)}'. Type 'help' for available commands.`, 'error-msg');
-      }
-    }
-  <script>
-    const input = document.getElementById('cmd-input');
-    const container = document.getElementById('terminal-container');
-
-    // Keep focus on input automatically
-    document.addEventListener('click', () => input.focus());
-
-    function appendLine(text, className = '') {
-      const line = document.createElement('div');
-      line.className = `log-line ${className}`;
-      line.innerHTML = text;
-      container.appendChild(line);
-      container.scrollTop = container.scrollHeight;
-    }
-
-    input.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') {
-        const cmd = input.value;
-        if (cmd.trim() === '') return;
-
-        // Echo command exactly as typed
-        appendLine(`<span class="prompt">GUEST@VOID-NODE:~$</span> ${escapeHTML(cmd)}`);
-        input.value = '';
-
-        processCommand(cmd);
-      }
-    });
-
-    function escapeHTML(str) {
-      return str.replace(/[&<>'"]/g, 
-        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
-    }
-
-    function processCommand(rawCmd) {
-      const cmd = rawCmd.trim();
-      const lowerCmd = cmd.toLowerCase();
-
-      // Flexible matching for Level 5 Admin Override Code
       if (
         cmd === 'give_user+level=5/allow-accept-=42552156' || 
         lowerCmd === 'give_user+level=5/allow-accept-=42552156' ||
@@ -403,7 +300,6 @@
         setTimeout(() => {
           const lowerQuery = query.toLowerCase();
 
-          // Custom query cases
           if (lowerQuery.includes('youtube') || lowerQuery.includes('playlist')) {
             appendLine('[+] MATCH FOUND: MEDIA CONTROLLER ACTIVE', 'system-msg');
             appendLine(' -> Stream Node: vrchat-search.onrender.com');
@@ -420,7 +316,6 @@
             appendLine(' -> Access Key: <span class="redacted">PROJECT_VOID_99</span>');
           } 
           else {
-            // Web / Node Search fallback
             appendLine('[*] QUERYING EXTERNAL WEB ARCHIVES...', 'system-msg');
             appendLine(`[+] RESULTS RETURNED FOR "${escapeHTML(query)}":`);
             appendLine(` -> [01] External Index: <a href="https://www.google.com/search?q=${encodeURIComponent(query)}" target="_blank" style="color:var(--term-green);">https://www.google.com/search?q=${encodeURIComponent(query)}</a>`);
@@ -456,55 +351,32 @@
           appendLine('[LOG 01]: Transmission received from UNKNOWN SENDER.');
           appendLine('[LOG 02]: <span class="redacted">LOCATION CORRUPTED</span>');
           appendLine('[LOG 03]: "The signal was never meant to be decoded..."');
-          appendLine('[LOG 04]: Broadcast sync complete across all local audio nodes.');
           break;
 
         case 'scan':
           appendLine('[*] SCANNING SUBNET 192.168.0.0/24...', 'system-msg');
-          setTimeout(() => appendLine(' -> NODE 01 [192.168.0.12] - ACTIVE (VRC_STREAM_HOST)'), 400);
-          setTimeout(() => appendLine(' -> NODE 02 [192.168.0.44] - <span class="error-msg">CORRUPTED</span>'), 800);
-          setTimeout(() => appendLine(' -> NODE 03 [192.168.0.99] - <span class="system-msg">ENCRYPTED</span>'), 1200);
+          setTimeout(() => appendLine(' -> NODE 01 [192.168.0.12] - ACTIVE'), 400);
+          setTimeout(() => appendLine(' -> NODE 02 [192.168.0.99] - ENCRYPTED'), 800);
           break;
 
         case 'decrypt':
           appendLine('[*] INITIALIZING BRUTE-FORCE DECRYPTION KEY...', 'system-msg');
-          let progress = 0;
-          const interval = setInterval(() => {
-            progress += 25;
-            appendLine(`[>>] DECRYPTING BLOCK... ${progress}%`);
-            if (progress >= 100) {
-              clearInterval(interval);
-              appendLine('[+] DECRYPTION COMPLETE: Payload key recovered.', 'system-msg');
-              appendLine('KEY VALUE: <span class="redacted">VOID_OVERRIDE_KEY_99</span>');
-            }
-          }, 300);
+          setTimeout(() => appendLine('[+] KEY RECOVERED: VOID_OVERRIDE_KEY_99', 'system-msg'), 600);
           break;
 
         case 'matrix':
           appendLine('[*] INITIATING MATRIX STREAM...', 'system-msg');
-          for (let i = 0; i < 5; i++) {
-            setTimeout(() => {
-              const randChars = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-              appendLine(`<span class="system-msg">${randChars}</span>`);
-            }, i * 200);
+          for (let i = 0; i < 4; i++) {
+            setTimeout(() => appendLine(`<span class="system-msg">${Math.random().toString(36).substring(2, 15)}</span>`), i * 200);
           }
           break;
 
         case 'audio':
-          appendLine('[*] TUNING FREQUENCY FEED...', 'system-msg');
-          setTimeout(() => appendLine('[+] CARRIER SIGNAL DETECTED: 104.5 MHz FM Broadcast'), 500);
-          setTimeout(() => appendLine('[+] FEED STATUS: ACTIVE LIVE STREAMING'), 900);
+          appendLine('[+] CARRIER SIGNAL DETECTED: 104.5 MHz FM Broadcast', 'system-msg');
           break;
 
         case 'clear':
           container.innerHTML = '';
-          break;
-
-        case 'override':
-          appendLine('ATTEMPTING SYSTEM OVERRIDE...', 'system-msg');
-          setTimeout(() => {
-            appendLine('ACCESS DENIED: LEVEL 5 CLEARANCE REQUIRED.', 'error-msg');
-          }, 600);
           break;
 
         default:
