@@ -196,7 +196,20 @@
       const cmd = rawCmd.trim();
       const lowerCmd = cmd.toLowerCase();
 
-      // Check for @tech= trigger
+      // Secret Level 5 Admin Override Code
+      if (cmd === 'give_user+level=5/allow-accept-=42552156') {
+        appendLine('[*] VALIDATING EXECUTIVE OVERRIDE HASH...', 'system-msg');
+        setTimeout(() => {
+          appendLine('[+] SECURITY KEY RECOGNIZED: LEVEL 5 CLEARANCE GRANTED.', 'system-msg');
+          appendLine('[+] ALL RESTRICTED NODES AND DOSSIERS UNLOCKED.');
+          appendLine(' -> <span style="color:#fff;">PROJECT_VOID_99 AUTHORIZED</span>');
+          appendLine(' -> <span style="color:#fff;">FM BROADCAST SIGNAL: 104.5 MHz OVERRIDDEN</span>');
+          appendLine(' -> <span style="color:#fff;">VRC_HLS_STREAM PIPELINE: UNRESTRICTED ACCESS</span>');
+        }, 800);
+        return;
+      }
+
+      // Handle @tech= trigger
       if (lowerCmd.startsWith('@tech=')) {
         const query = cmd.substring(6).trim();
         
@@ -212,7 +225,7 @@
         setTimeout(() => {
           const lowerQuery = query.toLowerCase();
 
-          // Handle custom query match cases
+          // Custom query cases
           if (lowerQuery.includes('youtube') || lowerQuery.includes('playlist')) {
             appendLine('[+] MATCH FOUND: MEDIA CONTROLLER ACTIVE', 'system-msg');
             appendLine(' -> Stream Node: vrchat-search.onrender.com');
@@ -229,7 +242,7 @@
             appendLine(' -> Access Key: <span class="redacted">PROJECT_VOID_99</span>');
           } 
           else {
-            // General Web / Node Search fallback
+            // Web / Node Search fallback
             appendLine('[*] QUERYING EXTERNAL WEB ARCHIVES...', 'system-msg');
             appendLine(`[+] RESULTS RETURNED FOR "${escapeHTML(query)}":`);
             appendLine(` -> [01] External Index: <a href="https://www.google.com/search?q=${encodeURIComponent(query)}" target="_blank" style="color:var(--term-green);">https://www.google.com/search?q=${encodeURIComponent(query)}</a>`);
