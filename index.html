@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RESTRICTED ACCESS - TERMINAL V0.9</title>
+  <style>
+    :root {
+      --bg-color: #050807;
+      --term-green: #00ff66;
+      --dim-green: #008837;
+      --alert-red: #ff3333;
+      --font-stack: "Courier New", Courier, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--term-green);
+      font-family: var(--font-stack);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      position: relative;
+    }
+
+    /* CRT Screen Scanline Effect */
+    body::before {
+      content: " ";
+      display: block;
+      position: absolute;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                  linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+      z-index: 10;
+      background-size: 100% 3px, 6px 100%;
+      pointer-events: none;
+    }
+
+    /* CRT Vignette */
+    body::after {
+      content: " ";
+      display: block;
+      position: absolute;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: radial-gradient(circle, rgba(0,0,0,0) 60%, rgba(0,0,0,0.85) 100%);
+      z-index: 11;
+      pointer-events: none;
+    }
+
+    header {
+      border-bottom: 2px solid var(--dim-green);
+      padding-bottom: 10px;
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: space-between;
+      text-transform: uppercase;
+      font-size: 0.9rem;
+    }
+
+    .status-alert {
+      color: var(--alert-red);
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0%, 49% { opacity: 1; }
+      50%, 100% { opacity: 0; }
+    }
+
+    #terminal-container {
+      flex: 1;
+      overflow-y: auto;
+      margin-bottom: 15px;
+      padding-right: 10px;
+      scroll-behavior: smooth;
+    }
+
+    .log-line {
+      margin-bottom: 6px;
+      line-height: 1.4;
+      word-break: break-all;
+    }
+
+    .system-msg {
+      color: var(--dim-green);
+    }
+
+    .error-msg {
+      color: var(--alert-red);
+    }
+
+    .redacted {
+      background-color: var(--term-green);
+      color: var(--bg-color);
+      padding: 0 4px;
+      user-select: none;
+    }
+
+    #input-line {
+      display: flex;
+      align-items: center;
+      border-top: 1px solid var(--dim-green);
+      padding-top: 10px;
+      font-size: 1rem;
+    }
+
+    .prompt {
+      margin-right: 10px;
+      color: var(--term-green);
+      font-weight: bold;
+    }
+
+    input[type="text"] {
+      background: transparent;
+      border: none;
+      color: var(--term-green);
+      font-family: var(--font-stack);
+      font-size: 1rem;
+      flex: 1;
+      outline: none;
+    }
+
+    /* Custom Scrollbar */
+    #terminal-container::-webkit-scrollbar {
+      width: 6px;
+    }
+    #terminal-container::-webkit-scrollbar-thumb {
+      background: var(--dim-green);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>SYS_NODE // 0x99_OVERRIDE</div>
+    <div class="status-alert">[!] SECURITY BREACH DETECTED</div>
+  </header>
+
+  <div id="terminal-container">
+    <div class="log-line system-msg">[SYSTEM BOOT OK...]</div>
+    <div class="log-line system-msg">[DECRYPTING ENCRYPTED DATA PACKET...]</div>
+    <div class="log-line system-msg">----------------------------------------------------</div>
+    <div class="log-line">WARNING: ACCESSING CLASSIFIED NODE DATA. ALL LOGS RECORDED.</div>
+    <div class="log-line">CLASSIFIED DOSSIER ID: <span class="redacted">PROJECT VOID</span></div>
+    <div class="log-line">TYPE <span style="color:#fff;">'help'</span> TO VIEW AVAILABLE TERMINAL COMMANDS.</div>
+    <div class="log-line system-msg">----------------------------------------------------</div>
+  </div>
+
+  <div id="input-line">
+    <span class="prompt">GUEST@VOID-NODE:~$</span>
+    <input type="text" id="cmd-input" autofocus autocomplete="off" spellcheck="false">
+  </div>
+
+  <script>
+    const input = document.getElementById('cmd-input');
+    const container = document.getElementById('terminal-container');
+
+    // Keep focus on input automatically
+    document.addEventListener('click', () => input.focus());
+
+    function appendLine(text, className = '') {
+      const line = document.createElement('div');
+      line.className = `log-line ${className}`;
+      line.innerHTML = text;
+      container.appendChild(line);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        const cmd = input.value.trim();
+        if (cmd === '') return;
+
+        // Echo command
+        appendLine(`<span class="prompt">GUEST@VOID-NODE:~$</span> ${escapeHTML(cmd)}`);
+        input.value = '';
+
+        processCommand(cmd.toLowerCase());
+      }
+    });
+
+    function escapeHTML(str) {
+      return str.replace(/[&<>'"]/g, 
+        tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+    }
+
+    function processCommand(cmd) {
+      switch (cmd) {
+        case 'help':
+          appendLine('AVAILABLE COMMANDS:');
+          appendLine('  <span style="color:#fff;">status</span>   - Check current system node health');
+          appendLine('  <span style="color:#fff;">logs</span>     - Read recent classified transmission logs');
+          appendLine('  <span style="color:#fff;">clear</span>    - Clear the terminal screen');
+          appendLine('  <span style="color:#fff;">override</span> - Attempt system override credentials');
+          break;
+
+        case 'status':
+          appendLine('[+] NODE 99 STATE: CORRUPTED', 'error-msg');
+          appendLine('[+] FIREWALL STATUS: BYPASSED', 'system-msg');
+          appendLine('[+] MEMORY CORRUPTION: 43.8%');
+          break;
+
+        case 'logs':
+          appendLine('[LOG 01]: Transmission received from UNKNOWN SENDER.');
+          appendLine('[LOG 02]: <span class="redacted">LOCATION CORRUPTED</span>');
+          appendLine('[LOG 03]: "The signal was never meant to be decoded..."');
+          break;
+
+        case 'clear':
+          container.innerHTML = '';
+          break;
+
+        case 'override':
+          appendLine('ATTEMPTING SYSTEM OVERRIDE...', 'system-msg');
+          setTimeout(() => {
+            appendLine('ACCESS DENIED: LEVEL 5 CLEARANCE REQUIRED.', 'error-msg');
+          }, 600);
+          break;
+
+        default:
+          appendLine(`Command not recognized: '${escapeHTML(cmd)}'. Type 'help' for commands.`, 'error-msg');
+      }
+    }
+  </script>
+</body>
+</html>
